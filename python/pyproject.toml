@@ -1,0 +1,32 @@
+# Copyright 2026 Jeff Koftinoff <jeff.koftinoff@statusbar.com>
+# SPDX-License-Identifier: MIT
+#
+# Dev-tooling project for this repo. No runtime Python code lives here yet;
+# uv is a developer convenience that pins the formatting toolchain:
+#
+#     uv sync --group dev          # formatters + linters
+#
+# The committed uv.lock pins the toolchain to the exact same versions on
+# every build context (host, dev container, CI) so reformat.sh never
+# produces different output depending on where it ran.
+
+[project]
+name = "atdecc-control-devtools"
+version = "0.1.0"
+description = "Pinned dev tooling for atdecc-control"
+authors = [{ name = "Jeff Koftinoff", email = "jeff.koftinoff@statusbar.com" }]
+requires-python = ">=3.10"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    # clang-format 19.1.7 matches the pin in statusbar-core/-avb (trixie/arm64
+    # target clang); reformat.sh enforces this exact version.
+    "clang-format==19.1.7",
+    "ruff==0.15.2",
+    # cmakelang provides cmake-format.
+    "cmakelang==0.6.13",
+]
+
+[tool.uv]
+package = false

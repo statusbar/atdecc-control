@@ -1,0 +1,12 @@
+# The widget bridge reference site (docs/PLAN.md §12.5).
+# Serve with: statusbar-widget-bridge <iface> --manifest site/manifest.toml
+
+[[route]]
+uri = "/"
+file = "index.html"
+type = "text/html; charset=utf-8"
+
+[[route]]
+uri = "/index.html"
+file = "index.html"
+type = "text/html; charset=utf-8"

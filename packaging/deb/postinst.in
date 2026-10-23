@@ -1,0 +1,39 @@
+#!/bin/sh
+# postinst for the statusbar-atdecc-control runtime package.
+#
+# Grants raw-ethernet capabilities to statusbar-galaxy-proxy,
+# statusbar-nadia-cp-proxy and statusbar-widget-bridge so the ATDECC control plane (ADP/AECP over
+# AF_PACKET) runs without root: build -> deploy the .deb -> ssh in ->
+# run, no manual setcap step. The other tools in this package are
+# TCP-only and need no capabilities.
+#
+#   cap_net_raw,cap_net_admin  AF_PACKET raw L2 access + SO_BINDTODEVICE
+#
+# @SETCAP_BINDIR@ is substituted by CMake to the package's install bindir.
+# Generated from packaging/deb/postinst.in -- do not edit the installed copy.
+set -e
+
+BINDIR="@SETCAP_BINDIR@"
+CAPS="cap_net_raw,cap_net_admin=ep"
+
+case "$1" in
+    configure)
+        if ! command -v setcap >/dev/null 2>&1; then
+            echo "statusbar-atdecc-control: 'setcap' not found (install libcap2-bin);" \
+                 "the proxies will need root." >&2
+            exit 0
+        fi
+        for f in "$BINDIR/statusbar-galaxy-proxy" "$BINDIR/statusbar-nadia-cp-proxy" "$BINDIR/statusbar-widget-bridge"; do
+            if [ -f "$f" ]; then
+                if setcap "$CAPS" "$f" 2>/dev/null; then
+                    echo "statusbar-atdecc-control: granted [$CAPS] to $f" >&2
+                else
+                    echo "statusbar-atdecc-control: warning: setcap failed on $f" >&2
+                fi
+            fi
+        done
+        ;;
+    abort-upgrade | abort-remove | abort-deconfigure) ;;
+esac
+
+exit 0

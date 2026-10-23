@@ -1,0 +1,10 @@
+{'/entity/entity_id': { 'description' : ' Entity ID', 'read_only' : 'true', 'name' : ' Entity ID', 'value' : '0x1cabfffe00c8f0', 'minimum' : '0', 'maximum' : '0xffffffffffffffff', 'default' : '0', 'step' : '0', 'units' : '', 'enum' : [], 'alias' : '@2'}}
+{'/entity/entity_model_id': { 'description' : ' Entity Model ID', 'read_only' : 'true', 'name' : ' Entity Model ID', 'value' : '0x1cabb80400400a', 'minimum' : '0', 'maximum' : '0xffffffffffffffff', 'default' : '0', 'step' : '0', 'units' : '', 'enum' : [], 'alias' : '@3'}}
+{'/entity/entity_name': { 'description' : ' Entity Name', 'read_only' : 'false', 'name' : ' Entity Name', 'value' : 'Q1', 'alias' : '@0'}}
+{'/entity/firmware_version': { 'description' : ' Firmware Version', 'read_only' : 'true', 'name' : ' Firmware Version', 'value' : '2.10.0-20260211-1241', 'alias' : '@5'}}
+{'/entity/group_name': { 'description' : ' Group Name', 'read_only' : 'false', 'name' : ' Group Name', 'value' : 'Q', 'alias' : '@1'}}
+{'/entity/input_channel_count': { 'description' : ' Input Channel Count', 'read_only' : 'true', 'name' : ' Input Channel Count', 'value' : '64', 'minimum' : '0', 'maximum' : '64', 'default' : '0', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@7'}}
+{'/entity/input_stream_count': { 'description' : ' Input Stream Count', 'read_only' : 'true', 'name' : ' Input Stream Count', 'value' : '18', 'minimum' : '0', 'maximum' : '65535', 'default' : '0', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@6'}}
+{'/entity/output_channel_count': { 'description' : ' Output Channel Count', 'read_only' : 'true', 'name' : ' Output Channel Count', 'value' : '24', 'minimum' : '0', 'maximum' : '24', 'default' : '0', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@9'}}
+{'/entity/output_stream_count': { 'description' : ' Output Stream Count', 'read_only' : 'true', 'name' : ' Output Stream Count', 'value' : '14', 'minimum' : '0', 'maximum' : '65535', 'default' : '0', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@8'}}
+{'/entity/serial_number': { 'description' : ' Serial Number', 'read_only' : 'true', 'name' : ' Serial Number', 'value' : '18441697', 'alias' : '@4'}}
