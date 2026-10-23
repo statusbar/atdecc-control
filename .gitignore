@@ -1,0 +1,13 @@
+**/__pycache__/
+**/.venv/
+build-*/
+build/
+deb-output/
+.cache/
+
+# never commit network captures / raw audio
+*.pcap
+*.pcapng
+*.cap
+*.raw
+Testing/

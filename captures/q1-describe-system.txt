@@ -1,0 +1,41 @@
+{'/system/access/1/code': { 'description' : ' Code', 'read_only' : 'false', 'name' : ' Code', 'value' : '', 'alias' : '@9731'}}
+{'/system/access/1/name': { 'description' : ' Name', 'read_only' : 'false', 'name' : ' Name', 'value' : 'Default', 'alias' : '@9730'}}
+{'/system/access/1/privilege': { 'description' : ' Privilege', 'read_only' : 'false', 'name' : ' Privilege', 'value' : '9223372036854775807', 'minimum' : '0', 'maximum' : '9223372036854775807', 'default' : '9223372036854775807', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@9732'}}
+{'/system/access/2/code': { 'description' : ' Code', 'read_only' : 'false', 'name' : ' Code', 'value' : '', 'alias' : '@9734'}}
+{'/system/access/2/name': { 'description' : ' Name', 'read_only' : 'false', 'name' : ' Name', 'value' : '', 'alias' : '@9733'}}
+{'/system/access/2/privilege': { 'description' : ' Privilege', 'read_only' : 'false', 'name' : ' Privilege', 'value' : '0', 'minimum' : '0', 'maximum' : '9223372036854775807', 'default' : '9223372036854775807', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@9735'}}
+{'/system/access/3/code': { 'description' : ' Code', 'read_only' : 'false', 'name' : ' Code', 'value' : '', 'alias' : '@9737'}}
+{'/system/access/3/name': { 'description' : ' Name', 'read_only' : 'false', 'name' : ' Name', 'value' : '', 'alias' : '@9736'}}
+{'/system/access/3/privilege': { 'description' : ' Privilege', 'read_only' : 'false', 'name' : ' Privilege', 'value' : '0', 'minimum' : '0', 'maximum' : '9223372036854775807', 'default' : '9223372036854775807', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@9738'}}
+{'/system/access/4/code': { 'description' : ' Code', 'read_only' : 'false', 'name' : ' Code', 'value' : '', 'alias' : '@9740'}}
+{'/system/access/4/name': { 'description' : ' Name', 'read_only' : 'false', 'name' : ' Name', 'value' : '', 'alias' : '@9739'}}
+{'/system/access/4/privilege': { 'description' : ' Privilege', 'read_only' : 'false', 'name' : ' Privilege', 'value' : '0', 'minimum' : '0', 'maximum' : '9223372036854775807', 'default' : '9223372036854775807', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@9741'}}
+{'/system/access/5/code': { 'description' : ' Code', 'read_only' : 'false', 'name' : ' Code', 'value' : '', 'alias' : '@9743'}}
+{'/system/access/5/name': { 'description' : ' Name', 'read_only' : 'false', 'name' : ' Name', 'value' : '', 'alias' : '@9742'}}
+{'/system/access/5/privilege': { 'description' : ' Privilege', 'read_only' : 'false', 'name' : ' Privilege', 'value' : '0', 'minimum' : '0', 'maximum' : '9223372036854775807', 'default' : '9223372036854775807', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@9744'}}
+{'/system/access/6/code': { 'description' : ' Code', 'read_only' : 'false', 'name' : ' Code', 'value' : '', 'alias' : '@9746'}}
+{'/system/access/6/name': { 'description' : ' Name', 'read_only' : 'false', 'name' : ' Name', 'value' : '', 'alias' : '@9745'}}
+{'/system/access/6/privilege': { 'description' : ' Privilege', 'read_only' : 'false', 'name' : ' Privilege', 'value' : '0', 'minimum' : '0', 'maximum' : '9223372036854775807', 'default' : '9223372036854775807', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@9747'}}
+{'/system/access/7/code': { 'description' : ' Code', 'read_only' : 'false', 'name' : ' Code', 'value' : '', 'alias' : '@9749'}}
+{'/system/access/7/name': { 'description' : ' Name', 'read_only' : 'false', 'name' : ' Name', 'value' : '', 'alias' : '@9748'}}
+{'/system/access/7/privilege': { 'description' : ' Privilege', 'read_only' : 'false', 'name' : ' Privilege', 'value' : '0', 'minimum' : '0', 'maximum' : '9223372036854775807', 'default' : '9223372036854775807', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@9750'}}
+{'/system/access/8/code': { 'description' : ' Code', 'read_only' : 'false', 'name' : ' Code', 'value' : '', 'alias' : '@9752'}}
+{'/system/access/8/name': { 'description' : ' Name', 'read_only' : 'false', 'name' : ' Name', 'value' : '', 'alias' : '@9751'}}
+{'/system/access/8/privilege': { 'description' : ' Privilege', 'read_only' : 'false', 'name' : ' Privilege', 'value' : '0', 'minimum' : '0', 'maximum' : '9223372036854775807', 'default' : '9223372036854775807', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@9753'}}
+{'/system/batch': { 'description' : ' Batch', 'read_only' : 'false', 'name' : ' Batch', 'value' : '0', 'minimum' : '0', 'maximum' : '1024', 'default' : '0', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@9725'}}
+{'/system/diagnostic/glitch_test/never_clear_meters': { 'description' : ' Never clear meters', 'read_only' : 'false', 'name' : ' Never clear meters', 'value' : 'false', 'minimum' : 'true', 'maximum' : 'false', 'default' : 'false', 'step' : '255', 'units' : '', 'enum' : [], 'alias' : '@9764'}}
+{'/system/firmware/code': { 'description' : ' Code', 'read_only' : 'true', 'name' : ' Code', 'value' : '0', 'minimum' : '0', 'maximum' : '2', 'default' : '0', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@9728'}}
+{'/system/firmware/status': { 'description' : ' Status', 'read_only' : 'true', 'name' : ' Status', 'value' : '0', 'minimum' : '0', 'maximum' : '1000', 'default' : '0', 'step' : '1', 'units' : '', 'enum' : [], 'alias' : '@9727'}}
+{'/system/firmware/status_string': { 'description' : ' Status String', 'read_only' : 'true', 'name' : ' Status String', 'value' : '', 'alias' : '@9729'}}
+{'/system/hardware/front_panel_lockout': { 'description' : 'Front Panel Lockout', 'read_only' : 'false', 'name' : 'Front Panel Lockout', 'value' : 'false', 'minimum' : 'true', 'maximum' : 'false', 'default' : 'false', 'step' : '255', 'units' : '', 'enum' : [], 'alias' : '@9726'}}
+{'/system/meter/demo/active': { 'description' : ' Demo meters', 'read_only' : 'false', 'name' : ' Demo meters', 'value' : 'false', 'minimum' : 'true', 'maximum' : 'false', 'default' : 'false', 'step' : '255', 'units' : '', 'enum' : [], 'alias' : '@9765'}}
+{'/system/mode/core': { 'description' : ' Core', 'read_only' : 'true', 'name' : ' Core', 'value' : 'false', 'minimum' : 'true', 'maximum' : 'false', 'default' : 'true', 'step' : '255', 'units' : '', 'enum' : [], 'alias' : '@9755'}}
+{'/system/mode/running': { 'description' : ' Running', 'read_only' : 'true', 'name' : ' Running', 'value' : 'true', 'minimum' : 'true', 'maximum' : 'false', 'default' : 'true', 'step' : '255', 'units' : '', 'enum' : [], 'alias' : '@9754'}}
+{'/system/network/1/static/gateway': { 'description' : ' Gateway', 'read_only' : 'false', 'name' : ' Gateway', 'value' : '192.168.0.1', 'alias' : '@9759'}}
+{'/system/network/1/static/ip_address': { 'description' : ' IP Address', 'read_only' : 'false', 'name' : ' IP Address', 'value' : '192.168.0.2', 'alias' : '@9757'}}
+{'/system/network/1/static/net_mask': { 'description' : ' Net Mask', 'read_only' : 'false', 'name' : ' Net Mask', 'value' : '255.255.255.0', 'alias' : '@9758'}}
+{'/system/network/1/type': { 'description' : ' Type DHCP=0 Static=1', 'read_only' : 'false', 'name' : ' Type DHCP=0 Static=1', 'value' : '0', 'minimum' : '0', 'maximum' : '1', 'default' : '0', 'step' : '1', 'units' : '', 'enum' : ['0:DHCP','1:Static'], 'alias' : '@9756'}}
+{'/system/network/2/static/gateway': { 'description' : ' Gateway', 'read_only' : 'false', 'name' : ' Gateway', 'value' : '192.168.0.1', 'alias' : '@9763'}}
+{'/system/network/2/static/ip_address': { 'description' : ' IP Address', 'read_only' : 'false', 'name' : ' IP Address', 'value' : '192.168.0.3', 'alias' : '@9761'}}
+{'/system/network/2/static/net_mask': { 'description' : ' Net Mask', 'read_only' : 'false', 'name' : ' Net Mask', 'value' : '255.255.255.0', 'alias' : '@9762'}}
+{'/system/network/2/type': { 'description' : ' Type DHCP=0 Static=1', 'read_only' : 'false', 'name' : ' Type DHCP=0 Static=1', 'value' : '0', 'minimum' : '0', 'maximum' : '1', 'default' : '0', 'step' : '1', 'units' : '', 'enum' : ['0:DHCP','1:Static'], 'alias' : '@9760'}}

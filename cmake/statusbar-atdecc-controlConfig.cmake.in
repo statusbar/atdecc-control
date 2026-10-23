@@ -1,0 +1,12 @@
+# Copyright 2026 Jeff Koftinoff <jeff.koftinoff@statusbar.com>
+# SPDX-License-Identifier: MIT
+#
+# Generated CMake package config for statusbar-atdecc-control.
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(statusbar-core)
+find_dependency(statusbar-avb)
+
+include("${CMAKE_CURRENT_LIST_DIR}/statusbar-atdecc-controlTargets.cmake")
+check_required_components(statusbar-atdecc-control)

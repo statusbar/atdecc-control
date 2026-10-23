@@ -1,0 +1,1170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Widget Bridge</title>
+<style>
+  /* Dark is the default look; the header button flips data-theme="light"
+     (persisted per browser). Every color in the page routes through these
+     tokens, so the two palettes are the whole theme. */
+  :root {
+    --bg: #14161a; --panel: #1d2026; --line: #2c3038; --text: #e8ecf2;
+    --dim: #b8c0cc; --accent: #4fa3ff; --bad: #e8837a; --good: #8fd489;
+    --on-accent: #08131f;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --bg: #f2f3f5; --panel: #ffffff; --line: #d5dae1; --text: #1b2028;
+    --dim: #5a6472; --accent: #1668c7; --bad: #b3382c; --good: #2f7d33;
+    --on-accent: #ffffff;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  /* The hidden attribute must beat class display rules (.widgets sets
+     display:grid, which would otherwise override the UA's [hidden]) —
+     collapsed channel bodies depend on this. */
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 system-ui, -apple-system, sans-serif; padding: 1rem;
+  }
+  header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1rem; }
+  h1 { font-size: 1.1rem; margin: 0; letter-spacing: 0.04em; }
+  #status { color: var(--dim); font-size: 0.85rem; }
+  #status.live { color: var(--good); }
+  .entity {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    margin-bottom: 1rem; overflow: hidden;
+  }
+  .entity > h2 {
+    font-size: 0.95rem; margin: 0; padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--line); display: flex; gap: 0.75rem; align-items: baseline;
+  }
+  .entity > h2 .id { color: var(--dim); font-size: 0.75rem; font-family: ui-monospace, monospace; }
+  .entitymeta { display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; padding: 0.5rem 1rem;
+                border-bottom: 1px solid var(--line); font-size: 0.75rem; }
+  .fact { display: flex; gap: 0.4rem; align-items: baseline; }
+  .factkey { color: var(--dim); text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.65rem; }
+  .factval { color: var(--text); font-family: ui-monospace, monospace; }
+  .widgets { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1px; background: var(--line); }
+  .widget { background: var(--panel); padding: 0.6rem 1rem; }
+  /* Three stacked rows per widget: name, then the full symbol path on its
+     own line (long paths would crowd a shared row), then the control. */
+  .widget .name { font-size: 0.8rem; color: var(--dim); }
+  .widget .sym { font-family: ui-monospace, monospace; font-size: 0.7rem; color: var(--dim);
+                 opacity: 0.85; margin-bottom: 0.25rem; overflow-wrap: anywhere; }
+  .row { display: flex; align-items: center; gap: 0.6rem; }
+  input[type=range] { flex: 1; accent-color: var(--accent); }
+  .val { min-width: 4.5em; text-align: right; font-family: ui-monospace, monospace; font-size: 0.85rem; }
+  .val.editable { cursor: pointer; border-bottom: 1px dotted var(--dim); }
+  .val.editable:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .valedit { width: 6.5em; font: 0.85rem ui-monospace, monospace; text-align: right; background: var(--bg);
+             color: var(--text); border: 1px solid var(--accent); border-radius: 3px; padding: 0 0.2rem; }
+  select, input[type=checkbox] { accent-color: var(--accent); }
+  select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 0.2rem 0.4rem; }
+  .ro { opacity: 0.75; }
+  .meterbank { display: flex; align-items: flex-end; gap: 2px; height: 2.2rem; flex: 1; }
+  .metercell { flex: 1; max-width: 10px; height: 100%; background: var(--bg); border-radius: 1px;
+               display: flex; align-items: flex-end; overflow: hidden; }
+  .meterfill { width: 100%; background: var(--good); min-height: 1px; }
+  /* Multi-value linear controls: one labelled slider line per entry. */
+  .multibank { display: flex; flex-direction: column; gap: 0.25rem; flex: 1; }
+  .multirow { display: flex; align-items: center; gap: 0.6rem; }
+  .multilabel { min-width: 4em; font-size: 0.75rem; color: var(--dim); white-space: nowrap;
+                overflow: hidden; text-overflow: ellipsis; }
+  .widget.wide { grid-column: 1 / -1; }
+  .mxgrid { display: grid; gap: 1px; background: var(--line); width: fit-content; max-width: 100%; overflow-x: auto; }
+  .mxcell { width: 18px; height: 14px; background: var(--bg); cursor: pointer; }
+  .mxcell:hover { outline: 1px solid var(--accent); }
+  .mxrowlabel { background: var(--panel); color: var(--dim); font: 0.65rem ui-monospace, monospace;
+                padding: 0 6px 0 0; text-align: right; white-space: nowrap; display: flex;
+                align-items: center; justify-content: flex-end; }
+  .mxcollabel { background: var(--panel); color: var(--dim); font: 0.6rem ui-monospace, monospace;
+                text-align: center; }
+  .opaque { color: var(--dim); font-style: italic; font-size: 0.85rem; }
+  details.section { border-top: 1px solid var(--line); }
+  details.section > summary { cursor: pointer; padding: 0.45rem 1rem; font-weight: 600; font-size: 0.9rem;
+                              list-style: none; display: flex; gap: 0.6rem; align-items: baseline; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before { content: "\25B8"; color: var(--dim); font-size: 0.8rem; }
+  details.section[open] > summary::before { content: "\25BE"; }
+  .count { color: var(--dim); font-size: 0.75rem; font-weight: 400; }
+  .ifaces { display: flex; flex-direction: column; gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
+  .iface { background: var(--panel); padding: 0.45rem 1rem; display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; align-items: baseline; }
+  .ifacename { font-size: 0.85rem; min-width: 9.5rem; }
+  .ifacename .sub { color: var(--dim); font-size: 0.7rem; font-family: ui-monospace, monospace; margin-left: 0.4rem; }
+  .chip { font-size: 0.65rem; padding: 0.1rem 0.45rem; border-radius: 999px; border: 1px solid var(--line); color: var(--dim);
+          text-transform: uppercase; letter-spacing: 0.03em; }
+  .chip.on { border-color: var(--good); color: var(--good); }
+  .chip.off { border-color: var(--bad); color: var(--bad); }
+  .chip.wait { font-style: italic; }
+  .secbody { padding-bottom: 0.4rem; }
+  .group { border-top: 1px solid var(--line); }
+  .grouphead { display: flex; align-items: center; gap: 0.75rem; padding: 0.15rem 1rem; }
+  .groupleft { display: flex; align-items: center; gap: 0.45rem; cursor: pointer; min-width: 9.5rem; user-select: none; }
+  .chev { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 0.8rem; padding: 0; }
+  .grouptitle { font-size: 0.85rem; }
+  .groupprimary { display: flex; flex-wrap: wrap; gap: 0.15rem 1.25rem; flex: 1; }
+  .groupprimary .widget { background: transparent; padding: 0.1rem 0; min-width: 230px; flex: 1 1 230px; }
+  .groupbody { border-top: 1px dashed var(--line); }
+  #log { color: var(--bad); font-size: 0.8rem; white-space: pre-line; margin-top: 1rem; }
+  #headright { margin-left: auto; display: flex; gap: 0.75rem; align-items: center; }
+  #scenebar { display: flex; gap: 0.5rem; }
+  #themebtn, #namesbtn { font-size: 0.95rem; line-height: 1; color: var(--dim); background: var(--panel);
+              border: 1px solid var(--line); border-radius: 6px; padding: 0.25rem 0.55rem; cursor: pointer; }
+  #namesbtn { font-size: 0.8rem; }
+  #themebtn:hover, #namesbtn:hover { color: var(--accent); border-color: var(--accent); }
+  .renamebtn { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 0.75rem;
+               padding: 0 0.3rem; opacity: 0.6; }
+  .renamebtn:hover { color: var(--accent); opacity: 1; }
+  .renameedit { font: 0.8rem system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text);
+                border: 1px solid var(--accent); border-radius: 3px; padding: 0 0.2rem; width: 14em; }
+  .scenebtn { font: 0.8rem system-ui, -apple-system, sans-serif; color: var(--accent);
+              background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+              padding: 0.3rem 0.7rem; cursor: pointer; }
+  .scenebtn:hover { border-color: var(--accent); }
+  .scenebtn:disabled { opacity: 0.5; cursor: default; }
+  #scenemsg { color: var(--dim); font-size: 0.8rem; font-family: ui-monospace, monospace; }
+  .identifybtn { font: 0.85rem system-ui, -apple-system, sans-serif; color: var(--text);
+                 background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+                 padding: 0.3rem 1rem; cursor: pointer; }
+  .identifybtn:hover { border-color: var(--accent); }
+  .identifybtn.winking { background: var(--accent); color: var(--on-accent); border-color: var(--accent);
+                         animation: wink 0.8s ease-in-out infinite alternate; }
+  @keyframes wink { from { opacity: 1; } to { opacity: 0.45; } }
+  @media (prefers-reduced-motion: reduce) { .identifybtn.winking { animation: none; } }
+  .kp-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex;
+                align-items: center; justify-content: center; z-index: 10; }
+  .kp { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+        padding: 1rem; width: 15.5rem; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+  .kp-title { font-size: 0.85rem; margin-bottom: 0.1rem; }
+  .kp-hint { color: var(--dim); font-size: 0.7rem; margin-bottom: 0.5rem; font-family: ui-monospace, monospace; }
+  .kp-display { background: var(--bg); border: 1px solid var(--accent); border-radius: 6px;
+                font: 1.3rem ui-monospace, monospace; text-align: right; padding: 0.35rem 0.6rem;
+                margin-bottom: 0.6rem; min-height: 2.2rem; overflow: hidden; white-space: nowrap; }
+  .kp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; }
+  .kp-grid button { font: 1.05rem ui-monospace, monospace; padding: 0.55rem 0; border-radius: 8px;
+                    border: 1px solid var(--line); background: var(--bg); color: var(--text); cursor: pointer; }
+  .kp-grid button:active { background: var(--line); }
+  .kp-grid .kp-enter { grid-row: span 2; background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 700; }
+  .kp-grid .kp-done { color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>WIDGET BRIDGE</h1><span id="status">connecting…</span>
+  <span id="headright">
+    <span id="scenebar" hidden>
+      <button id="scenecapture" class="scenebtn">capture scene</button>
+      <button id="scenerecall" class="scenebtn">recall scene</button>
+      <input id="scenefile" type="file" accept=".scene,.txt,text/plain" hidden>
+    </span>
+    <span id="scenemsg"></span>
+    <button id="namesbtn" title="Toggle user/factory names">names: user</button>
+    <button id="themebtn" title="Toggle light/dark">☾</button>
+  </span>
+</header>
+<main id="entities"></main>
+<div id="log"></div>
+<script>
+"use strict";
+const entities = new Map();  // entity id -> {info, widgets: Map(control -> spec)}
+const statusEl = document.getElementById("status");
+const logEl = document.getElementById("log");
+let ws = null;
+
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/ws`, ["statusbar.widgets.v1"]);
+  ws.onopen = () => { statusEl.textContent = "live"; statusEl.className = "live"; };
+  ws.onclose = () => {
+    statusEl.textContent = "reconnecting…"; statusEl.className = "";
+    sceneBar.hidden = true;
+    entities.clear(); render();
+    setTimeout(connect, 1500);
+  };
+  ws.onmessage = (event) => {
+    let msg;
+    try { msg = JSON.parse(event.data); } catch { return; }
+    handle(msg);
+  };
+}
+
+function handle(msg) {
+  switch (msg.op) {
+    case "hello":
+      sceneBar.hidden = !msg.scenes;
+      break;
+    case "entity":
+      entities.set(msg.entity, { info: msg, widgets: new Map(), interfaces: new Map() });
+      break;
+    case "interface": {
+      // Static AVB_INTERFACE detail (descriptor); arrives right after
+      // "entity", before the widgets. Live state follows as "avb_info".
+      const e = entities.get(msg.entity);
+      if (!e) break;
+      const prev = e.interfaces.get(msg.interface);
+      e.interfaces.set(msg.interface, { ...msg, live: prev && prev.live });
+      break;
+    }
+    case "avb_info": {
+      const e = entities.get(msg.entity);
+      const iface = e && e.interfaces.get(msg.interface);
+      if (!iface) break;
+      iface.live = msg;
+      updateInterface(msg.entity, iface);
+      break;
+    }
+    case "widget": {
+      const e = entities.get(msg.entity);
+      if (!e) break;
+      const existed = e.widgets.has(widgetKey(msg));
+      e.widgets.set(widgetKey(msg), msg);
+      if (existed) {
+        // A spec update after build (a rename confirmation): patch the
+        // rendered label in place.
+        const box = document.getElementById(widgetDomId(msg.entity, msg));
+        const label = box && box.querySelector(".nametext");
+        if (label) label.textContent = widgetLabel(msg);
+      }
+      break;
+    }
+    case "groups": {
+      // Jumbo entity: the bridge sends a group summary instead of every
+      // spec; widgets arrive per group on an "open" op. The summary is
+      // chunked (seq/last) to stay under the server's frame budget. A
+      // fresh summary (rebuild) invalidates whatever was open — specs
+      // re-arrive on re-open.
+      const e = entities.get(msg.entity);
+      if (!e) break;
+      if (!msg.seq) e.groupsPending = [];
+      (e.groupsPending = e.groupsPending || []).push(...(msg.groups || []));
+      if (msg.last) {
+        e.groups = e.groupsPending;
+        delete e.groupsPending;
+        e.widgets.clear();
+        for (const k of [...openKeys]) {
+          if (k.startsWith(`${msg.entity}|jumbo|`)) openKeys.delete(k);
+        }
+      }
+      break;
+    }
+    case "entity_done":
+      render();
+      break;
+    case "departed":
+      entities.delete(msg.entity);
+      render();
+      break;
+    case "value": {
+      const e = entities.get(msg.entity);
+      const w = e && e.widgets.get(widgetKey(msg));
+      if (!w) break;
+      if (msg.d === "mx" && msg.at !== undefined) {
+        w.values = w.values || [];
+        msg.values.forEach((v, i) => { w.values[msg.at + i] = v; });
+      } else {
+        w.values = msg.values;
+      }
+      updateWidget(msg.entity, w);
+      break;
+    }
+    case "error":
+      logEl.textContent = `error: ${msg.reason}` +
+        (msg.entity ? ` (entity ${msg.entity}, control ${msg.control ?? "?"})` : "");
+      setTimeout(() => { logEl.textContent = ""; }, 4000);
+      break;
+  }
+}
+
+function send(obj) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); }
+
+// ---- theme -----------------------------------------------------------------
+// Dark by default; the header button flips light/dark, remembered per
+// browser (localStorage can throw in private windows — dark still works).
+// ---- naming ----------------------------------------------------------------
+// The bridge resolves each widget's display name as object_name (the
+// user's SET_NAME sticker) else the localized manufacturer name, and
+// also sends the manufacturer name as "mfr". The header toggle flips
+// which one the page shows; the pencil edits object_name via a rename
+// op (empty text clears back to the authored name).
+let namesMode = "user";
+try { namesMode = localStorage.getItem("wb-names") || "user"; } catch {}
+function widgetLabel(w) {
+  if (namesMode === "factory") return w.mfr || w.name || `control ${w.control}`;
+  return w.name || w.mfr || `control ${w.control}`;
+}
+
+const themeBtn = document.getElementById("themebtn");
+function applyTheme(theme) {
+  if (theme === "light") document.documentElement.dataset.theme = "light";
+  else delete document.documentElement.dataset.theme;
+  themeBtn.textContent = theme === "light" ? "☀" : "☾";
+}
+let theme = "dark";
+try { theme = localStorage.getItem("wb-theme") || "dark"; } catch {}
+applyTheme(theme);
+themeBtn.onclick = () => {
+  theme = theme === "light" ? "dark" : "light";
+  applyTheme(theme);
+  try { localStorage.setItem("wb-theme", theme); } catch {}
+};
+
+const namesBtn = document.getElementById("namesbtn");
+function applyNamesMode() { namesBtn.textContent = `names: ${namesMode}`; }
+applyNamesMode();
+namesBtn.onclick = () => {
+  namesMode = namesMode === "user" ? "factory" : "user";
+  applyNamesMode();
+  try { localStorage.setItem("wb-names", namesMode); } catch {}
+  render();
+};
+
+// ---- offline scenes (PLAN §12.8) -------------------------------------------
+// The bridge advertises "scenes": true in hello only when the
+// /scene/capture and /scene/recall routes exist (offline mode); the
+// buttons stay hidden everywhere else. Capture downloads the M7 scene
+// file; recall uploads one and shows the bridge's plain-text report —
+// recalled values then arrive as ordinary value pushes.
+const sceneBar = document.getElementById("scenebar");
+const sceneMsg = document.getElementById("scenemsg");
+const sceneFile = document.getElementById("scenefile");
+const captureBtn = document.getElementById("scenecapture");
+const recallBtn = document.getElementById("scenerecall");
+let sceneMsgTimer = null;
+
+
+function showSceneMsg(text) {
+  sceneMsg.textContent = text;
+  clearTimeout(sceneMsgTimer);
+  sceneMsgTimer = setTimeout(() => { sceneMsg.textContent = ""; }, 8000);
+}
+
+captureBtn.addEventListener("click", async () => {
+  captureBtn.disabled = true;
+  try {
+    const resp = await fetch("/scene/capture");
+    if (!resp.ok) { showSceneMsg(`capture failed: HTTP ${resp.status}`); return; }
+    const text = await resp.text();
+    const stamp = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+    a.download = `scene-${stamp}.scene`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showSceneMsg(`captured ${text.split("\n").filter(l => l && !l.startsWith("#")).length} points`);
+  } catch (err) {
+    showSceneMsg(`capture failed: ${err}`);
+  } finally {
+    captureBtn.disabled = false;
+  }
+});
+
+recallBtn.addEventListener("click", () => { sceneFile.value = ""; sceneFile.click(); });
+
+sceneFile.addEventListener("change", async () => {
+  const file = sceneFile.files && sceneFile.files[0];
+  if (!file) return;
+  recallBtn.disabled = true;
+  try {
+    const text = await file.text();
+    const resp = await fetch("/scene/recall", { method: "POST", body: text });
+    const report = (await resp.text()).trim();
+    showSceneMsg(resp.ok ? report : `recall failed: HTTP ${resp.status}`);
+  } catch (err) {
+    showSceneMsg(`recall failed: ${err}`);
+  } finally {
+    recallBtn.disabled = false;
+  }
+});
+
+// Controls, signal selectors, and matrices are separate index
+// namespaces; "d" discriminates ("sel" = SIGNAL_SELECTOR, "mx" =
+// MATRIX, absent = CONTROL).
+function widgetKey(w) {
+  return (w.d === "sel" ? "s" : w.d === "mx" ? "m" : "c") + w.control;
+}
+function widgetDomId(entity, w) {
+  return `w-${entity}-${widgetKey(w)}`;
+}
+
+// AEM unit codes (IEEE 1722.1 Table 7.7) -> display suffix. The unit
+// multiplier is a power of ten naming the unit's scale (values arrive
+// already in that scale), so it becomes an SI prefix — except the
+// dB family and %, which never take prefixes.
+const UNIT_SUFFIX = {
+  0x02:"%", 0x03:"f-stop",
+  0x08:"s", 0x09:"min", 0x0A:"h", 0x0B:"d", 0x0C:"mo", 0x0D:"yr", 0x0E:"samples", 0x0F:"frames",
+  0x10:"Hz", 0x11:"semitones", 0x12:"cents", 0x13:"oct", 0x14:"fps",
+  0x18:"m", 0x20:"K", 0x28:"g", 0x30:"V", 0x31:"dBV", 0x32:"dBu",
+  0x38:"A", 0x40:"W", 0x41:"dBm", 0x42:"dBW", 0x48:"Pa",
+  0x50:"bits", 0x51:"B", 0x52:"KiB", 0x53:"MiB", 0x54:"GiB", 0x55:"TiB",
+  0x58:"b/s", 0x59:"B/s", 0x5A:"KiB/s", 0x5B:"MiB/s", 0x5C:"GiB/s", 0x5D:"TiB/s",
+  0x60:"cd", 0x68:"J", 0x70:"rad", 0x78:"N", 0x80:"Ω", 0x88:"m/s", 0x89:"rad/s",
+  0x90:"m/s²", 0x91:"rad/s²", 0x98:"T", 0x99:"Wb", 0x9A:"A/m",
+  0xA0:"m²", 0xA8:"m³", 0xA9:"L",
+  0xB0:"dB", 0xB1:"dB", 0xB2:"dB", 0xB3:"dBFS", 0xB4:"dBFS", 0xB5:"dBFS",
+};
+const SI_PREFIX = {"-12":"p", "-9":"n", "-6":"µ", "-3":"m", "-2":"c", "-1":"d",
+                   "0":"", "1":"da", "2":"h", "3":"k", "6":"M", "9":"G", "12":"T"};
+// The AEM multiplier (a power of ten applied to the wire value) shows
+// either as an SI prefix on the unit ("1824 mV") or, when the unit
+// takes no prefix — unitless, dB, %, or a multiplier the prefix table
+// lacks — by scaling the displayed number ("45.84", not "4584").
+function usesSiPrefix(code, mult) {
+  const suffix = UNIT_SUFFIX[code];
+  if (!suffix || suffix.startsWith("dB") || suffix === "%") return false;
+  return SI_PREFIX[String(mult || 0)] !== undefined;
+}
+
+function unitSuffix(code, mult) {
+  if (code === 0x20) return " \u00b0C";  // Kelvin values display as Celsius
+  const suffix = UNIT_SUFFIX[code];
+  if (!suffix) return "";
+  if (!usesSiPrefix(code, mult)) return " " + suffix;
+  return " " + SI_PREFIX[String(mult || 0)] + suffix;
+}
+
+// The wire value in the widget's display scale: Kelvin (the AEM unit)
+// converts to Celsius for humans; a unit shown without an SI prefix
+// carries its multiplier in the number; a prefixed unit passes through.
+function displayValue(v, unit, mult) {
+  const n = Number(v);
+  if (unit === 0x20) return (n * Math.pow(10, Number(mult || 0))) - 273.15;
+  if (!usesSiPrefix(unit, mult)) return n * Math.pow(10, Number(mult || 0));
+  return n;
+}
+
+// The step in the display scale, for rounding what displayValue made.
+function displayStep(step, unit, mult) {
+  const n = Number(step);
+  if (unit === 0x20 || !usesSiPrefix(unit, mult)) return n * Math.pow(10, Number(mult || 0));
+  return n;
+}
+
+// Inverse of displayValue: what the user typed (display scale) back to
+// the wire scale (Celsius input -> Kelvin wire value).
+// The result is snapped to nine decimals: 45.84 / 0.01 lands a hair
+// off 4584, and an integer control's encoder truncates.
+function wireValue(v, unit, mult) {
+  const n = Number(v);
+  const scale = Math.pow(10, Number(mult || 0));
+  const snap = (x) => Math.round(x * 1e9) / 1e9;
+  if (unit === 0x20) return snap((n + 273.15) / scale);
+  if (!usesSiPrefix(unit, mult)) return snap(n / scale);
+  return n;
+}
+
+// Display formatting: float32 controls decode to doubles with
+// representation noise (30.8 arrives as 30.799999237060547). Round to
+// the control's step precision when it has one, else 4 significant
+// digits. The precise value still travels on the wire — this is
+// display only.
+function fmtValue(v, step) {
+  const n = Number(v);
+  if (!isFinite(n)) return String(v);
+  const s = Number(step);
+  if (isFinite(s) && s > 0) {
+    const decimals = Math.min(6, Math.max(0, Math.ceil(-Math.log10(s) - 1e-9)));
+    return n.toFixed(decimals);
+  }
+  return String(Number(n.toPrecision(4)));
+}
+
+// ---- hierarchy -------------------------------------------------------------
+// Top-level disclosable sections, then per-channel disclosable groups
+// (from the entity's CONTROL_BLOCKs, carried as each widget's `group`).
+// Primary channel controls (GAIN / MUTE control types) stay visible in
+// the group header; the rest disclose.
+const SECTION_ORDER = ["Inputs", "Matrix", "Outputs", "Meters", "Misc", "Other"];
+const CT_GAIN = "0x90e0f00000000004", CT_MUTE = "0x90e0f00000000002";
+const openKeys = new Set();  // survives re-renders
+
+function classify(w) {
+  // Section placement keys on the stable factory (localized) name, so a
+  // user rename never moves a widget between sections.
+  const stable = w.mfr || w.name;
+  if (w.kind === "matrix") return ["Matrix", stable];
+  if (w.kind === "meter") return ["Meters", null];
+  const mode = /^(Input \d+)\b/.exec(stable || "");
+  if (w.d === "sel" && mode) return ["Inputs", mode[1]];
+  if (w.group) {
+    // Channel strips match exactly ("Input 3", "Output 12"); other
+    // blocks (link groups, ...) go to Other under their own name.
+    if (/^Input \d+$/.test(w.group)) return ["Inputs", w.group];
+    if (/^Output \d+$/.test(w.group)) return ["Outputs", w.group];
+    return ["Other", w.group];
+  }
+  return ["Misc", null];
+}
+function natKey(s) { return s.replace(/\d+/g, (n) => n.padStart(6, "0")); }
+
+function render() {
+  const main = document.getElementById("entities");
+  main.textContent = "";
+  for (const [id, e] of entities) {
+    const card = document.createElement("section");
+    card.className = "entity";
+    const h = document.createElement("h2");
+    h.textContent = e.info.name || id;
+    const span = document.createElement("span");
+    span.className = "id";
+    span.textContent = id;
+    h.appendChild(span);
+    card.appendChild(h);
+
+    // ENTITY-descriptor detail line: only the fields the device authored.
+    const info = e.info;
+    const facts = [];
+    const maker = [info.vendor, info.model_name].filter(Boolean).join(" ");
+    if (maker) facts.push(["make", maker]);
+    if (info.firmware) facts.push(["firmware", info.firmware]);
+    if (info.serial) facts.push(["serial", info.serial]);
+    if (info.group) facts.push(["group", info.group]);
+    if (info.model !== undefined) facts.push(["model id", info.model]);
+    if (info.talkers) facts.push(["talkers", String(info.talkers)]);
+    if (info.listeners) facts.push(["listeners", String(info.listeners)]);
+    if (info.configs) facts.push(["config", `${info.config} of ${info.configs}`]);
+    if (facts.length) {
+      const meta = document.createElement("div");
+      meta.className = "entitymeta";
+      for (const [k, v] of facts) {
+        const item = document.createElement("span");
+        item.className = "fact";
+        const key = document.createElement("span");
+        key.className = "factkey";
+        key.textContent = k;
+        const val = document.createElement("span");
+        val.className = "factval";
+        val.textContent = v;
+        item.append(key, val);
+        meta.appendChild(item);
+      }
+      card.appendChild(meta);
+    }
+
+    if (e.interfaces.size) {
+      const list = document.createElement("div");
+      list.className = "ifaces";
+      for (const iface of [...e.interfaces.values()].sort((a, b) => a.interface - b.interface)) {
+        list.appendChild(buildInterface(id, iface));
+      }
+      card.appendChild(list);
+    }
+
+    if (e.groups) {  // jumbo entity: groups on demand, no sections
+      renderJumbo(card, id, e);
+      main.appendChild(card);
+      continue;
+    }
+
+    // Bucket widgets into section -> group -> [widgets].
+    const sections = new Map();
+    for (const [key, w] of e.widgets) {
+      const [sec, group] = classify(w);
+      if (!sections.has(sec)) sections.set(sec, new Map());
+      const groups = sections.get(sec);
+      const gk = group || "";
+      if (!groups.has(gk)) groups.set(gk, []);
+      groups.get(gk).push(w);
+    }
+
+    for (const sec of SECTION_ORDER) {
+      const groups = sections.get(sec);
+      if (!groups) continue;
+      const det = document.createElement("details");
+      det.className = "section";
+      const skey = `${id}|${sec}`;
+      det.open = openKeys.has(skey);
+      det.addEventListener("toggle", () => {
+        if (det.open) openKeys.add(skey); else openKeys.delete(skey);
+      });
+      const sum = document.createElement("summary");
+      sum.textContent = sec;
+      const count = document.createElement("span");
+      count.className = "count";
+      count.textContent = String([...groups.values()].reduce((n, ws) => n + ws.length, 0));
+      sum.appendChild(count);
+      det.appendChild(sum);
+
+      const body = document.createElement("div");
+      body.className = "secbody";
+
+      if (groups.has("")) {  // section-level widgets, no channel group
+        const grid = document.createElement("div");
+        grid.className = "widgets";
+        for (const w of groups.get("")) grid.appendChild(buildWidget(id, w));
+        body.appendChild(grid);
+      }
+
+      const names = [...groups.keys()].filter((g) => g !== "")
+        .sort((a, b) => natKey(a) < natKey(b) ? -1 : 1);
+      for (const gname of names) {
+        const ws = groups.get(gname);
+        // Primaries: the strip's main gain and mute — the first of each
+        // control type in authored order (an "Atmospheric Gain" later in
+        // the strip is not the fader).
+        const firstGain = ws.find((w) => w.ct === CT_GAIN);
+        const firstMute = ws.find((w) => w.ct === CT_MUTE);
+        const primaries = [firstGain, firstMute].filter(Boolean);
+        const rest = ws.filter((w) => !primaries.includes(w));
+        const gkey = `${id}|${sec}|${gname}`;
+        const grp = document.createElement("div");
+        grp.className = "group";
+
+        const head = document.createElement("div");
+        head.className = "grouphead";
+        const left = document.createElement("div");
+        left.className = "groupleft";
+        const chev = document.createElement("button");
+        chev.className = "chev";
+        chev.textContent = openKeys.has(gkey) ? "\u25BE" : "\u25B8";
+        const title = document.createElement("span");
+        title.className = "grouptitle";
+        title.textContent = gname;
+        left.append(chev, title);
+        const prim = document.createElement("div");
+        prim.className = "groupprimary";
+        for (const w of primaries) prim.appendChild(buildWidget(id, w));
+        head.append(left, prim);
+
+        const gbody = document.createElement("div");
+        gbody.className = "widgets groupbody";
+        gbody.hidden = !openKeys.has(gkey);
+        for (const w of rest) gbody.appendChild(buildWidget(id, w));
+
+        left.onclick = () => {
+          const opening = gbody.hidden;
+          gbody.hidden = !opening;
+          chev.textContent = opening ? "\u25BE" : "\u25B8";
+          if (opening) openKeys.add(gkey); else openKeys.delete(gkey);
+        };
+
+        grp.append(head, gbody);
+        body.appendChild(grp);
+      }
+      det.appendChild(body);
+      card.appendChild(det);
+    }
+    main.appendChild(card);
+  }
+}
+
+// A jumbo entity (the nadia-CP proxy serves 55k+ controls) renders its
+// server-sent group summary; expanding a group sends "open" and the
+// widgets stream in, collapsing sends "close" and drops them locally.
+function renderJumbo(card, id, e) {
+  const body = document.createElement("div");
+  body.className = "secbody";
+  const groups = [...e.groups].sort((a, b) =>
+    natKey(a.name || "\u007F") < natKey(b.name || "\u007F") ? -1 : 1);  // "" (Misc) last
+  for (const g of groups) {
+    const gname = g.name;
+    const gkey = `${id}|jumbo|${gname}`;
+    const grp = document.createElement("div");
+    grp.className = "group";
+
+    const head = document.createElement("div");
+    head.className = "grouphead";
+    const left = document.createElement("div");
+    left.className = "groupleft";
+    const chev = document.createElement("button");
+    chev.className = "chev";
+    chev.textContent = openKeys.has(gkey) ? "▾" : "▸";
+    const title = document.createElement("span");
+    title.className = "grouptitle";
+    title.textContent = gname || "Misc";
+    const count = document.createElement("span");
+    count.className = "count";
+    count.textContent = String(g.count);
+    left.append(chev, title, count);
+    head.appendChild(left);
+
+    const gbody = document.createElement("div");
+    gbody.className = "widgets groupbody";
+    gbody.hidden = !openKeys.has(gkey);
+    const loaded = [...e.widgets.values()].filter((w) => (w.group || "") === gname && w.d !== "mx");
+    const matrices = [...e.widgets.values()].filter((w) => (w.group || "") === gname && w.d === "mx");
+    if (openKeys.has(gkey) && !loaded.length && !matrices.length) {
+      const wait = document.createElement("span");
+      wait.className = "id";
+      wait.textContent = "loading…";
+      gbody.appendChild(wait);
+    }
+    for (const w of loaded) gbody.appendChild(buildWidget(id, w));
+    for (const w of matrices) gbody.appendChild(buildWidget(id, w));
+
+    left.onclick = () => {
+      const opening = gbody.hidden;
+      gbody.hidden = !opening;
+      chev.textContent = opening ? "▾" : "▸";
+      if (opening) {
+        openKeys.add(gkey);
+        send({ op: "open", entity: id, group: gname });
+      } else {
+        openKeys.delete(gkey);
+        send({ op: "close", entity: id, group: gname });
+        for (const [k, w] of e.widgets) {
+          if ((w.group || "") === gname) e.widgets.delete(k);
+        }
+        gbody.textContent = "";
+      }
+    };
+
+    grp.append(head, gbody);
+    body.appendChild(grp);
+  }
+  card.appendChild(body);
+}
+
+// ---- numeric keypad --------------------------------------------------------
+// A calculator-style popup for typing values — touch-first (iPad: no OS
+// keyboard summoned), with hardware-keyboard support while open.
+let keypadClose = null;
+function openKeypad({ title, hint, initial, onCommit, defaultMinus }) {
+  if (keypadClose) keypadClose();
+  let text = String(initial ?? "");
+  // Calculator freshness: the first digit replaces the pre-filled
+  // value. On dB controls (defaultMinus) a fresh entry is negative
+  // unless "+" is pressed first — the console convention.
+  let fresh = true;
+  const overlay = document.createElement("div");
+  overlay.className = "kp-overlay";
+  const kp = document.createElement("div");
+  kp.className = "kp";
+  const t = document.createElement("div"); t.className = "kp-title"; t.textContent = title;
+  const h = document.createElement("div"); h.className = "kp-hint"; h.textContent = hint || "";
+  const disp = document.createElement("div"); disp.className = "kp-display";
+  const paint = () => { disp.textContent = text === "" ? "\u00a0" : text; };
+  paint();
+  const grid = document.createElement("div"); grid.className = "kp-grid";
+  const press = (k) => {
+    if (k === "\u232b") { text = text.slice(0, -1); fresh = false; }
+    else if (k === "C") { text = ""; fresh = true; }
+    else if (k === "\u00b1" || k === "+" || k === "-") {
+      if (fresh) { text = ""; fresh = false; }
+      let want;
+      if (k === "+") want = "+";
+      else if (k === "-") want = "-";
+      else if (text.startsWith("-")) want = "+";
+      else if (text.startsWith("+")) want = "-";
+      else want = defaultMinus ? "+" : "-";  // fresh dB entry is already minus
+      text = want + text.replace(/^[+-]/, "");
+    } else {
+      if (fresh) { text = defaultMinus ? "-" : ""; fresh = false; }
+      if (k === ".") { if (!text.includes(".")) text += text.replace(/^[+-]/, "") === "" ? "0." : "."; }
+      else text += k;
+    }
+    paint();
+  };
+  const close = () => { overlay.remove(); document.removeEventListener("keydown", onKey, true); keypadClose = null; };
+  const commit = () => {
+    const n = Number(text);
+    if (text !== "" && isFinite(n)) { close(); onCommit(n); } else close();
+  };
+  // Layout: 7 8 9 ⌫ / 4 5 6 C / 1 2 3 ↵(2 rows) / ± 0 .
+  const keys = ["7", "8", "9", "\u232b", "4", "5", "6", "C", "1", "2", "3", null, "\u00b1", "0", "."];
+  for (const k of keys) {
+    if (k === null) {
+      const enter = document.createElement("button");
+      enter.className = "kp-enter";
+      enter.textContent = "\u23ce";
+      enter.onclick = commit;
+      grid.appendChild(enter);
+      continue;
+    }
+    const b = document.createElement("button");
+    b.textContent = k;
+    b.onclick = () => press(k);
+    grid.appendChild(b);
+  }
+  // "Done" commits, like Enter — the iPad convention. Escape (or a tap
+  // outside the popup) cancels.
+  const done = document.createElement("button");
+  done.className = "kp-done";
+  done.textContent = "Done";
+  done.onclick = commit;
+  grid.appendChild(done);
+  const onKey = (ev) => {
+    ev.stopPropagation();
+    if (ev.key === "Enter") { ev.preventDefault(); commit(); }
+    else if (ev.key === "Escape") close();
+    else if (ev.key === "Backspace") { press("\u232b"); ev.preventDefault(); }
+    else if (/^[0-9.]$/.test(ev.key)) press(ev.key);
+    else if (ev.key === "-" || ev.key === "+") press(ev.key);
+  };
+  document.addEventListener("keydown", onKey, true);
+  overlay.onclick = (ev) => { if (ev.target === overlay) close(); };
+  kp.append(t, h, disp, grid);
+  overlay.appendChild(kp);
+  document.body.appendChild(overlay);
+  keypadClose = close;
+}
+
+function ifaceDomId(entity, iface) { return `iface|${entity}|${iface.interface}`; }
+
+function fact(key, value, cls) {
+  const item = document.createElement("span");
+  item.className = "fact";
+  const k = document.createElement("span");
+  k.className = "factkey";
+  k.textContent = key;
+  const v = document.createElement("span");
+  v.className = "factval" + (cls ? ` ${cls}` : "");
+  v.textContent = value;
+  item.append(k, v);
+  return item;
+}
+
+function chip(text, state) {
+  const c = document.createElement("span");
+  c.className = "chip" + (state ? ` ${state}` : "");
+  c.textContent = text;
+  return c;
+}
+
+/// One AVB interface row: the descriptor's gPTP configuration (priorities,
+/// clock quality, domain, intervals) and, once GET_AVB_INFO has answered,
+/// the live state — grandmaster, asCapable, propagation delay, SRP.
+function buildInterface(entity, iface) {
+  const row = document.createElement("div");
+  row.className = "iface";
+  row.id = ifaceDomId(entity, iface);
+  const name = document.createElement("span");
+  name.className = "ifacename";
+  name.textContent = iface.name || `AVB interface ${iface.interface}`;
+  const sub = document.createElement("span");
+  sub.className = "sub";
+  sub.textContent = iface.mac;
+  name.appendChild(sub);
+  row.appendChild(name);
+  row.appendChild(fact("clock id", iface.clock_id));
+  row.appendChild(fact("priority1", String(iface.priority1)));
+  row.appendChild(fact("priority2", String(iface.priority2)));
+  row.appendChild(fact("class", `${iface.clock_class} / acc ${iface.clock_accuracy}`));
+  row.appendChild(fact("domain", String(iface.domain)));
+  row.appendChild(fact("intervals", `sync 2^${iface.log_sync} ann 2^${iface.log_announce} pdelay 2^${iface.log_pdelay}`));
+  const live = document.createElement("span");
+  live.className = "ifacelive";
+  live.style.display = "contents";
+  row.appendChild(live);
+  updateInterface(entity, iface, row);
+  return row;
+}
+
+function updateInterface(entity, iface, row) {
+  row = row || document.getElementById(ifaceDomId(entity, iface));
+  if (!row) return;
+  const live = row.querySelector(".ifacelive");
+  live.textContent = "";
+  const s = iface.live;
+  if (!s) {
+    live.appendChild(chip("reading gPTP state…", "wait"));
+    return;
+  }
+  const gmSet = s.gm && s.gm !== "0x0000000000000000";
+  live.appendChild(chip(s.as_capable ? "asCapable" : "not asCapable", s.as_capable ? "on" : "off"));
+  if (s.avtp_down !== undefined) live.appendChild(chip(s.avtp_down ? "AVTP down" : "AVTP up", s.avtp_down ? "off" : "on"));
+  live.appendChild(fact("grandmaster", gmSet ? s.gm : "none", gmSet ? "" : "ro"));
+  live.appendChild(fact("gm domain", String(s.domain)));
+  live.appendChild(fact("prop delay", `${s.prop_delay} ns`));
+  live.appendChild(chip(s.gptp_enabled ? "gPTP" : "no gPTP", s.gptp_enabled ? "on" : "off"));
+  live.appendChild(chip(s.srp_enabled ? "SRP" : "no SRP", s.srp_enabled ? "on" : "off"));
+  (s.msrp_tc || []).forEach((tc, i) => {
+    live.appendChild(fact(`class ${tc === 0 ? "A" : tc === 1 ? "B" : tc}`, `pcp ${s.msrp_pcp[i]} vlan ${s.msrp_vlan[i]}`));
+  });
+}
+
+function buildWidget(entity, w) {
+  const box = document.createElement("div");
+  box.className = "widget" + (w.ro ? " ro" : "");
+  box.id = widgetDomId(entity, w);
+  const name = document.createElement("div");
+  name.className = "name";
+  const label = document.createElement("span");
+  label.className = "nametext";
+  label.textContent = widgetLabel(w);
+  name.appendChild(label);
+  const pencil = document.createElement("button");
+  pencil.className = "renamebtn";
+  pencil.textContent = "\u270e";
+  pencil.title = "Rename (empty resets to the factory name)";
+  pencil.onclick = () => {
+    const input = document.createElement("input");
+    input.className = "renameedit";
+    input.maxLength = 64;
+    input.value = w.name || "";
+    const commit = () => {
+      const msg = { op: "rename", entity, control: w.control, name: input.value };
+      if (w.d) msg.d = w.d;
+      send(msg);
+      input.replaceWith(label);
+    };
+    input.onkeydown = (ev) => {
+      if (ev.key === "Enter") commit();
+      if (ev.key === "Escape") input.replaceWith(label);
+    };
+    input.onblur = () => input.replaceWith(label);
+    label.replaceWith(input);
+    input.focus();
+    input.select();
+  };
+  name.appendChild(pencil);
+  box.appendChild(name);
+  const sym = document.createElement("div");
+  sym.className = "sym";
+  sym.textContent = w.symbol || "";
+  box.appendChild(sym);
+
+  const row = document.createElement("div");
+  row.className = "row";
+  const current = (w.values && w.values[0]) ?? w.value ?? w.default ?? 0;
+
+  if (w.kind === "slider" && (w.values || []).length > 1) {
+    // A multi-value linear control (the Meyer Temperature control:
+    // NVME / CPU / Case) is one slider per entry, each named by its
+    // localized string when the device authored one. A set writes the
+    // whole vector back with just the moved entry changed.
+    box.classList.add("multi");
+    const suffix = unitSuffix(w.unit, w.unit_multiplier);
+    const dstep = displayStep(w.step, w.unit, w.unit_multiplier);
+    const bank = document.createElement("div");
+    bank.className = "multibank";
+    w.values.forEach((v, i) => {
+      const line = document.createElement("div");
+      line.className = "multirow";
+      const label = document.createElement("span");
+      label.className = "multilabel";
+      label.textContent = (w.labels && w.labels[i]) || `#${i + 1}`;
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = w.min; slider.max = w.max; slider.step = w.step || "any";
+      slider.value = v;
+      slider.disabled = !!w.ro;
+      const val = document.createElement("span");
+      val.className = "val";
+      val.textContent = fmtValue(displayValue(v, w.unit, w.unit_multiplier), dstep) + suffix;
+      slider.oninput = () => { val.textContent = fmtValue(displayValue(slider.value, w.unit, w.unit_multiplier), dstep) + suffix; };
+      slider.onchange = () => {
+        const values = Array.from(bank.querySelectorAll("input[type=range]"), (s) => Number(s.value));
+        values[i] = Number(slider.value);
+        send({ op: "set", entity, control: w.control, values });
+      };
+      line.append(label, slider, val);
+      bank.appendChild(line);
+    });
+    row.append(bank);
+  } else if (w.kind === "slider") {
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = w.min; slider.max = w.max; slider.step = w.step || "any";
+    slider.value = current;
+    slider.disabled = !!w.ro;
+    const suffix = unitSuffix(w.unit, w.unit_multiplier);
+    const dstep = displayStep(w.step, w.unit, w.unit_multiplier);
+    const val = document.createElement("span");
+    val.className = "val" + (w.ro ? "" : " editable");
+    val.textContent = fmtValue(displayValue(current, w.unit, w.unit_multiplier), dstep) + suffix;
+    slider.oninput = () => { val.textContent = fmtValue(displayValue(slider.value, w.unit, w.unit_multiplier), dstep) + suffix; };
+    slider.onchange = () => send({ op: "set", entity, control: w.control, values: [Number(slider.value)] });
+    if (!w.ro) {
+      // Click the number to type a value (entered in the displayed
+      // units — °C for Kelvin controls — converted back for the wire).
+      val.title = "tap to type a value" + (suffix ? ` (${suffix.trim()})` : "");
+      val.onclick = () => {
+        const lo = displayValue(w.min, w.unit, w.unit_multiplier);
+        const hi = displayValue(w.max, w.unit, w.unit_multiplier);
+        openKeypad({
+          title: w.name || `control ${w.control}`,
+          hint: `${fmtValue(lo, dstep)} \u2026 ${fmtValue(hi, dstep)}${suffix}`,
+          initial: fmtValue(displayValue(slider.value, w.unit, w.unit_multiplier), dstep),
+          defaultMinus: suffix.trim().startsWith("dB"),
+          onCommit: (n) => {
+            const clamped = Math.min(hi, Math.max(lo, n));
+            const wire = wireValue(clamped, w.unit, w.unit_multiplier);
+            slider.value = wire;
+            val.textContent = fmtValue(clamped, dstep) + suffix;
+            send({ op: "set", entity, control: w.control, values: [wire] });
+          },
+        });
+      };
+    }
+    row.append(slider, val);
+  } else if (w.kind === "identify") {
+    // The standard IDENTIFY control (Milan-mandated): write max, the
+    // device winks its LED, and a compliant one self-resets per
+    // reset_time. Value pushes light the button while the wink is
+    // active — and clicking a lit button writes min, so a device that
+    // does NOT self-reset (the proxy stores the value verbatim) can
+    // always be turned off.
+    const btn = document.createElement("button");
+    btn.className = "identifybtn";
+    btn.textContent = "Identify";
+    btn.disabled = !!w.ro;
+    btn.onclick = () => {
+      const active = btn.classList.contains("winking");
+      send({ op: "set", entity, control: w.control, values: [active ? Number(w.min ?? 0) : Number(w.max ?? 255)] });
+    };
+    if (Number(current) !== 0) btn.classList.add("winking");
+    row.append(btn);
+  } else if (w.kind === "toggle") {
+    // Toggles carry their own on/off values (0/1, or the AEM 0/255
+    // mute-and-identify convention): off = min, on = max.
+    const off = Number(w.min ?? 0), on = Number(w.max ?? 1);
+    const toggle = document.createElement("input");
+    toggle.type = "checkbox";
+    toggle.checked = Number(current) !== off;
+    toggle.disabled = !!w.ro;
+    toggle.onchange = () => send({ op: "set", entity, control: w.control, values: [toggle.checked ? on : off] });
+    row.append(toggle);
+  } else if (w.kind === "select") {
+    const select = document.createElement("select");
+    (w.options || []).forEach((option, i) => {
+      const el = document.createElement("option");
+      el.value = option;
+      el.textContent = (w.labels && w.labels[i] !== undefined) ? w.labels[i] : String(option);
+      select.appendChild(el);
+    });
+    select.value = w.value ?? current;
+    select.disabled = !!w.ro;
+    select.onchange = () => send(w.d === "sel" ? { op: "set", entity, control: w.control, d: "sel", values: [Number(select.value)] }
+                             : { op: "set", entity, control: w.control, values: [Number(select.value)] });
+    row.append(select);
+  } else if (w.kind === "meter") {
+    const bank = document.createElement("div");
+    bank.className = "meterbank";
+    const lo = Number(w.min ?? -90), hi = Number(w.max ?? 20);
+    for (const v of w.values || []) {
+      const cell = document.createElement("div");
+      cell.className = "metercell";
+      const fill = document.createElement("div");
+      fill.className = "meterfill";
+      fill.style.height = `${Math.max(0, Math.min(100, ((Number(v) - lo) / (hi - lo)) * 100))}%`;
+      cell.appendChild(fill);
+      bank.appendChild(cell);
+    }
+    const peak = document.createElement("span");
+    peak.className = "val";
+    const top = (w.values || []).length ? Math.max(...w.values.map(Number)) : lo;
+    peak.textContent = fmtValue(displayValue(top, w.unit, w.unit_multiplier), displayStep(w.step, w.unit, w.unit_multiplier)) + unitSuffix(w.unit, w.unit_multiplier);
+    row.append(bank, peak);
+  } else if (w.kind === "matrix") {
+    box.classList.add("wide");
+    const grid = document.createElement("div");
+    grid.className = "mxgrid";
+    grid.style.gridTemplateColumns = `auto repeat(${w.width}, 18px)`;
+    const suffix = unitSuffix(w.unit, w.unit_multiplier);
+    const lo = Number(w.min ?? 0), hi = Number(w.max ?? 1);
+    const rowName = (r) => (w.rows && w.rows[r]) || `in ${r + 1}`;
+    const paint = (cellEl, at) => {
+      const v = Number((w.values || [])[at] ?? w.default ?? lo);
+      const t = Math.max(0, Math.min(1, (v - lo) / (hi - lo || 1)));
+      cellEl.style.background = `color-mix(in srgb, var(--accent) ${Math.round(t * 85)}%, var(--bg))`;
+      const r = Math.floor(at / w.width), col = (at % w.width) + 1;
+      cellEl.title = `${rowName(r)} \u2192 out ${col}: ${fmtValue(displayValue(v, w.unit, w.unit_multiplier), displayStep(w.step, w.unit, w.unit_multiplier))}${suffix}`;
+    };
+    // Header row: empty corner + output numbers.
+    const corner = document.createElement("div");
+    corner.className = "mxcollabel";
+    grid.appendChild(corner);
+    for (let c = 1; c <= w.width; c++) {
+      const head = document.createElement("div");
+      head.className = "mxcollabel";
+      head.textContent = String(c);
+      head.title = `out ${c}`;
+      grid.appendChild(head);
+    }
+    for (let r = 0; r < w.height; r++) {
+      const label = document.createElement("div");
+      label.className = "mxrowlabel";
+      label.textContent = rowName(r);
+      grid.appendChild(label);
+      for (let c = 0; c < w.width; c++) {
+        const at = r * w.width + c;
+        const cellEl = document.createElement("div");
+        cellEl.className = "mxcell";
+        cellEl.dataset.at = at;
+        paint(cellEl, at);
+        if (!w.ro) cellEl.onclick = () => {
+          openKeypad({
+            title: `${w.name}: ${rowName(r)} \u2192 out ${c + 1}`,
+            hint: `${fmtValue(w.min, w.step)} \u2026 ${fmtValue(w.max, w.step)}${suffix}`,
+            initial: fmtValue((w.values || [])[at] ?? w.default ?? 0, w.step),
+            defaultMinus: suffix.trim().startsWith("dB"),
+            onCommit: (n) => {
+              const clamped = Math.min(Number(w.max), Math.max(Number(w.min), n));
+              send({ op: "set", entity, control: w.control, d: "mx", at, values: [clamped] });
+            },
+          });
+        };
+        grid.appendChild(cellEl);
+      }
+    }
+    box._paintCell = paint;
+    row.append(grid);
+  } else if (w.kind === "text") {
+    const text = document.createElement("span");
+    text.textContent = w.text || "";
+    row.append(text);
+  } else {
+    const opaque = document.createElement("span");
+    opaque.className = "opaque";
+    opaque.textContent = "(unsupported control type)";
+    row.append(opaque);
+  }
+  box.appendChild(row);
+  return box;
+}
+
+function updateWidget(entity, w) {
+  const box = document.getElementById(widgetDomId(entity, w));
+  if (!box) return;
+  const v = (w.values && w.values[0]) ?? 0;
+  const idbtn = box.querySelector(".identifybtn");
+  if (idbtn) idbtn.classList.toggle("winking", Number(v) !== 0);
+  const multi = box.querySelector(".multibank");
+  if (multi) {
+    const dstep = displayStep(w.step, w.unit, w.unit_multiplier);
+    const suffix = unitSuffix(w.unit, w.unit_multiplier);
+    multi.querySelectorAll(".multirow").forEach((line, i) => {
+      const mv = (w.values || [])[i];
+      if (mv === undefined) return;
+      line.querySelector("input[type=range]").value = mv;
+      line.querySelector(".val").textContent = fmtValue(displayValue(mv, w.unit, w.unit_multiplier), dstep) + suffix;
+    });
+    return;
+  }
+  const slider = box.querySelector("input[type=range]");
+  if (slider) {
+    slider.value = v;
+    const val = box.querySelector(".val");
+    if (val) val.textContent = fmtValue(displayValue(v, w.unit, w.unit_multiplier), displayStep(w.step, w.unit, w.unit_multiplier)) + unitSuffix(w.unit, w.unit_multiplier);
+  }
+  const toggle = box.querySelector("input[type=checkbox]");
+  if (toggle) toggle.checked = Number(v) !== Number(w.min ?? 0);
+  const select = box.querySelector("select");
+  if (select) select.value = v;
+  const grid = box.querySelector(".mxgrid");
+  if (grid && box._paintCell) {
+    grid.querySelectorAll(".mxcell").forEach((cellEl) => box._paintCell(cellEl, Number(cellEl.dataset.at)));
+    return;
+  }
+  const bank = box.querySelector(".meterbank");
+  if (bank) {
+    const lo = Number(w.min ?? -90), hi = Number(w.max ?? 20);
+    const fills = bank.querySelectorAll(".meterfill");
+    (w.values || []).forEach((mv, i) => {
+      if (fills[i]) fills[i].style.height = `${Math.max(0, Math.min(100, ((Number(mv) - lo) / (hi - lo)) * 100))}%`;
+    });
+    const peak = box.querySelector(".val");
+    if (peak) {
+      const top = (w.values || []).length ? Math.max(...w.values.map(Number)) : lo;
+      peak.textContent = fmtValue(displayValue(top, w.unit, w.unit_multiplier), w.step) + unitSuffix(w.unit, w.unit_multiplier);
+    }
+  }
+}
+
+connect();
+</script>
+</body>
+</html>
