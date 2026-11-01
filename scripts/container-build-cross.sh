@@ -47,9 +47,11 @@ DEB_OUTPUT="${DEB_OUTPUT:-$EXPORT_ROOT/deb-output}"
 IMAGE="localhost/statusbar-deb-builder-cross:$DEBIAN_VERSION-$TARGET_ARCH-$STATUSBAR_TOOLCHAIN"
 
 # The container mounts the tree read-only without a usable .git, so resolve
-# the release-tag version on the host (fallback matches CMakeLists.txt).
+# the release-tag version on the host. Empty when the tree is not at a
+# release tag: then nothing is passed and CMakeLists.txt's own literal
+# applies, rather than a second copy of it here that drifts.
 PKG_VERSION="$(git -C "$TREE_DIR" describe --tags --exact-match \
-                 --match '[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || echo 0.1.0)"
+                 --match '[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)"
 DEB_REVISION="${STATUSBAR_DEB_REVISION:-$(date -u +%Y%m%d%H%M%S)}"
 
 MOUNT_OPT=""
@@ -124,7 +126,7 @@ echo "=== cross-building statusbar-$PKG .deb (target $TARGET_ARCH) ==="
       -DENABLE_STATIC_CXX_RUNTIME="$STATUSBAR_STATIC_CXX" \
       -DCMAKE_C_COMPILER_LAUNCHER=ccache \
       -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-      -DSTATUSBAR_ATDECC_CONTROL_VERSION="$PKG_VERSION" \
+      ${PKG_VERSION:+-DSTATUSBAR_ATDECC_CONTROL_VERSION=$PKG_VERSION} \
       -DCPACK_DEBIAN_PACKAGE_ARCHITECTURE="$TARGET_ARCH"
     cmake --build /build
     ( cd /build && cpack -G DEB -D CPACK_DEBIAN_PACKAGE_RELEASE="$DEB_REVISION" )
