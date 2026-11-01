@@ -1,13 +1,15 @@
 cmake_minimum_required(VERSION 3.31)
 
 # ---- version --------------------------------------------------------------
-# Single source of truth: the repo's latest release tag. Resolution order: 1.
-# -DSTATUSBAR_ATDECC_CONTROL_VERSION=x.y.z (container builds resolve the tag on
-# the host) 2. git describe on this tree (developer builds) 3. the fallback
-# literal below (tarball builds; bump on release only if neither of the above is
-# available). The version flows from here into the package metadata and the
-# proxy entity's firmware_version (STATUSBAR_ATDECC_CONTROL_VERSION compile
-# definition).
+# Single source of truth: a release tag ON this commit, else the literal below.
+# Resolution order: 1. -DSTATUSBAR_ATDECC_CONTROL_VERSION=x.y.z (container
+# builds resolve the tag on the host) 2. git describe --exact-match on this tree
+# (a release build, checked out at its tag) 3. the fallback literal below (every
+# other build: development trees, tarballs). Exact, not nearest: the nearest tag
+# is the PREVIOUS release, and a tree that has moved on from it must not call
+# itself by its name. Bump the literal when a release is cut. The version flows
+# from here into the package metadata and the proxy entity's firmware_version
+# (STATUSBAR_ATDECC_CONTROL_VERSION compile definition).
 if(NOT STATUSBAR_ATDECC_CONTROL_VERSION)
   execute_process(
     COMMAND git -C "${CMAKE_CURRENT_SOURCE_DIR}" describe --tags --exact-match
