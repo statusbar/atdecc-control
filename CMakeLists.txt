@@ -10,13 +10,13 @@ cmake_minimum_required(VERSION 3.31)
 # definition).
 if(NOT STATUSBAR_ATDECC_CONTROL_VERSION)
   execute_process(
-    COMMAND git -C "${CMAKE_CURRENT_SOURCE_DIR}" describe --tags --abbrev=0
+    COMMAND git -C "${CMAKE_CURRENT_SOURCE_DIR}" describe --tags --exact-match
             --match "[0-9]*.[0-9]*.[0-9]*"
     OUTPUT_VARIABLE STATUSBAR_ATDECC_CONTROL_VERSION
     OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
 endif()
 if(NOT STATUSBAR_ATDECC_CONTROL_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
-  set(STATUSBAR_ATDECC_CONTROL_VERSION 2.1.0)
+  set(STATUSBAR_ATDECC_CONTROL_VERSION 2.3.0)
 endif()
 
 project(

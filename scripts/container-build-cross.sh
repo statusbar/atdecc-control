@@ -48,7 +48,7 @@ IMAGE="localhost/statusbar-deb-builder-cross:$DEBIAN_VERSION-$TARGET_ARCH-$STATU
 
 # The container mounts the tree read-only without a usable .git, so resolve
 # the release-tag version on the host (fallback matches CMakeLists.txt).
-PKG_VERSION="$(git -C "$TREE_DIR" describe --tags --abbrev=0 \
+PKG_VERSION="$(git -C "$TREE_DIR" describe --tags --exact-match \
                  --match '[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || echo 0.1.0)"
 DEB_REVISION="${STATUSBAR_DEB_REVISION:-$(date -u +%Y%m%d%H%M%S)}"
 
