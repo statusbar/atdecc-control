@@ -107,6 +107,34 @@ bool entity_id_in_use(std::string const& interface_name, std::uint64_t id_bits)
     return false;
 }
 
+// The device may be absent when the proxy starts - powered down, or not
+// yet patched in - just as it may go absent later. Startup waits for it
+// the way the run loop waits after a loss: a connect attempt every 5 s,
+// one line on the first failure and one every ~10 min after, until the
+// device answers or the proxy is told to stop. Returns false only on a
+// stop request.
+template <class Connect, class Error>
+bool wait_for_southbound(char const* what, itc::StopToken const& stop, Connect&& connect, Error&& error)
+{
+    unsigned failed_attempts = 0;
+    while (!stop.stop_requested()) {
+        if (connect()) {
+            if (failed_attempts != 0) {
+                fprintf(stderr, "%s succeeded after %u failed attempt(s)\n", what, failed_attempts);
+            }
+            return true;
+        }
+        ++failed_attempts;
+        if (failed_attempts == 1 || failed_attempts % 120 == 0) {
+            fprintf(stderr, "%s failed (attempt %u): %s; retrying every 5 s\n", what, failed_attempts, error());
+        }
+        for (int i = 0; i < 50 && !stop.stop_requested(); ++i) {
+            usleep(100000);
+        }
+    }
+    return false;
+}
+
 int usage()
 {
     fprintf(
@@ -115,7 +143,8 @@ int usage()
         "[--port n] (--shape inputs=N,buses=N,outputs=N,listens=N,vgroups=N,bands=N | --discover [--max n])\n"
         "       [--ping-quiet ms] [--ping-timeout ms]   southbound liveness: ping the Core after ms of\n"
         "       silence (default 10000), reconnect when the ping goes unanswered for ms (default 5000);\n"
-        "       --ping-quiet 0 disables\n");
+        "       --ping-quiet 0 disables\n"
+        "       A device that does not answer at startup is retried every 5 s until it does.\n");
     return 2;
 }
 
@@ -182,13 +211,19 @@ int main(int argc, char** argv)
         return 2;
     }
 
+    auto& stop = itc::install_stop_signal();
+
     if (discover) {
         // The proxy generates its AEM from the shape at construction, so
         // the probe runs on a throwaway connection first.
         GalaxyClient probe;
-        if (!probe.connect(config.nadia_host, config.nadia_port)) {
-            fprintf(stderr, "discover connect failed: %s\n", probe.error().c_str());
-            return 1;
+        if (!wait_for_southbound(
+                "discover connect",
+                stop,
+                [&] { return probe.connect(config.nadia_host, config.nadia_port); },
+                [&] { return probe.error().c_str(); })) {
+            fprintf(stderr, "stopped\n");
+            return 0;
         }
         config.shape = discover_nadia_shape(probe, max, stderr);
         probe.close();
@@ -220,13 +255,16 @@ int main(int argc, char** argv)
         proxy.ns().size(),
         proxy.aem().count_of(atdecc::aem::DESCRIPTOR_CONTROL));
 
-    if (!proxy.connect_southbound()) {
-        fprintf(stderr, "southbound connect failed: %s\n", proxy.client().error().c_str());
-        return 1;
+    if (!wait_for_southbound(
+            "southbound connect",
+            stop,
+            [&] { return proxy.connect_southbound(); },
+            [&] { return proxy.client().error().c_str(); })) {
+        fprintf(stderr, "stopped\n");
+        return 0;
     }
     fprintf(stderr, "southbound connected; state requested\n");
 
-    auto& stop = itc::install_stop_signal();
     net::MessageReactor reactor{stop, net::monotonic_ns, 10};
     if (auto st = proxy.start(reactor, interface_name); !st) {
         fprintf(stderr, "control plane start failed on %s\n", interface_name.c_str());
