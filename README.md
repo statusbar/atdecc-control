@@ -18,6 +18,9 @@ Docs:
   deploying to a Raspberry Pi on the AVB segment, restart discipline,
   live verification
 - [docs/TOOLS.md](docs/TOOLS.md) — command-line tool reference
+- [docs/RELEASE_2_4_0.md](docs/RELEASE_2_4_0.md) — the 2.4.0 release
+  summary across the statusbar repositories (this package carries only
+  the version bump; the time-handling migration is in core and avb)
 
 ## Layout
 
