@@ -21,6 +21,10 @@ Docs:
 - [docs/RELEASE_2_4_0.md](docs/RELEASE_2_4_0.md) — the 2.4.0 release
   summary across the statusbar repositories (this package carries only
   the version bump; the time-handling migration is in core and avb)
+- [docs/RELEASE_2_5_0.md](docs/RELEASE_2_5_0.md) — the 2.5.0 release
+  summary across the statusbar repositories (this package carries only
+  the version bump; the IEEE 1722 security work and the IEEE 1722.1-2021
+  conformance fixes are in crypto and avb)
 
 ## Layout
 
