@@ -13,7 +13,9 @@
 #include <poll.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <atomic>
+#include <condition_variable>
 #include <cstring>
 #include <mutex>
 #include <string>
@@ -119,6 +121,7 @@ struct SilentDevice
     std::uint16_t port = 0;
     std::thread thread;
     std::mutex mutex;
+    std::condition_variable changed;  ///< notified when lines grows
     std::vector<std::string> lines;
     std::atomic<int> conn_fd{-1};
     std::atomic<int> accepted{0};
@@ -153,6 +156,7 @@ struct SilentDevice
                 continue;
             }
             conn_fd = fd;
+            conn_fd.notify_all();
             ++accepted;
             std::string pending;
             char buf[4096];
@@ -164,8 +168,11 @@ struct SilentDevice
                 pending.append(buf, std::size_t(n));
                 std::size_t at;
                 while ((at = pending.find('\n')) != std::string::npos) {
-                    std::lock_guard lock(mutex);
-                    lines.push_back(pending.substr(0, at));
+                    {
+                        std::lock_guard lock(mutex);
+                        lines.push_back(pending.substr(0, at));
+                    }
+                    changed.notify_all();
                     pending.erase(0, at + 1);
                 }
             }
@@ -182,6 +189,23 @@ struct SilentDevice
             n += l == line;
         }
         return n;
+    }
+
+    /// Block until @p line has been received. A wait for the event, with
+    /// no timeout: a line that never comes hangs the test, and the
+    /// runner's own timeout reports it.
+    void wait_for_line(std::string const& line)
+    {
+        std::unique_lock lock(mutex);
+        changed.wait(lock, [&] { return std::count(lines.begin(), lines.end(), line) > 0; });
+    }
+
+    /// Block until the device has accepted a connection.
+    void wait_for_connection()
+    {
+        for (int fd = conn_fd.load(); fd < 0; fd = conn_fd.load()) {
+            conn_fd.wait(fd);
+        }
     }
 
     void push(std::string const& text)
@@ -233,9 +257,7 @@ TEST(galaxy_client, liveness_pings_a_quiet_device_and_gives_up_on_silence)
     EXPECT_TRUE(client.ping_outstanding());
     EXPECT_EQ(client.check_liveness(now + 12 * MS, quiet, reply, ping), 0);
     EXPECT_EQ(client.ping_count(), 1u);
-    for (int i = 0; i < 100 && device.count("?/status/model_string") == 0; ++i) {
-        usleep(10000);
-    }
+    device.wait_for_line("?/status/model_string");
     EXPECT_EQ(device.count("?/status/model_string"), 1u);
 
     // Reply window elapsed with silence: dead, closed, explained.
@@ -265,9 +287,7 @@ TEST(galaxy_client, liveness_any_received_byte_answers_the_ping)
     std::uint64_t now = 100 * MS;
     EXPECT_EQ(client.check_liveness(now, quiet, reply, ping), 0);
     EXPECT_EQ(client.check_liveness(now + 10 * MS, quiet, reply, ping), 1);
-    for (int i = 0; i < 100 && device.conn_fd < 0; ++i) {
-        usleep(10000);
-    }
+    device.wait_for_connection();
     // The device answers (with anything): the ping is settled and the
     // quiet clock restarts from that receive.
     device.push("?{'/status/model_string': {}}\r\n");

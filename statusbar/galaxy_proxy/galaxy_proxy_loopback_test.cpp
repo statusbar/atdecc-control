@@ -14,7 +14,9 @@
 #include <poll.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <atomic>
+#include <condition_variable>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -42,6 +44,7 @@ struct FakeGalaxy
     std::uint16_t port = 0;
     std::thread thread;
     std::mutex mutex;
+    std::condition_variable changed;  ///< notified when received_commands grows
     std::vector<std::string> received_sets;
     std::vector<std::string> received_commands;
     std::atomic<bool> echo_sets{true};  ///< the real device does not always echo
@@ -115,11 +118,14 @@ struct FakeGalaxy
             return;
         }
         // Gets/describes/subscribes/recalls: record, answer nothing.
-        std::lock_guard lock(mutex);
-        received_commands.push_back(line);
-        if (line[0] == ':') {
-            received_sets.push_back(line);
+        {
+            std::lock_guard lock(mutex);
+            received_commands.push_back(line);
+            if (line[0] == ':') {
+                received_sets.push_back(line);
+            }
         }
+        changed.notify_all();
     }
 
     void push(std::string const& value_report_line)
@@ -145,6 +151,16 @@ struct FakeGalaxy
             n += l == line;
         }
         return n;
+    }
+
+    /// Block until @p line has been received @p at_least times. A wait for
+    /// the event, with no timeout: a command that never comes hangs the
+    /// test, and the runner's own timeout reports it.
+    void wait_for_command(std::string const& line, std::size_t at_least = 1)
+    {
+        std::unique_lock lock(mutex);
+        changed.wait(
+            lock, [&] { return std::size_t(std::count(received_commands.begin(), received_commands.end(), line)) >= at_least; });
     }
 
     ~FakeGalaxy()
@@ -517,9 +533,7 @@ TEST(galaxy_proxy, silent_device_is_detected_and_reconnect_requests_state_again)
     now += 2 * MS;
     EXPECT_EQ(proxy.poll(0, now), 0);
     EXPECT_EQ(proxy.client().ping_count(), 1u);
-    for (int i = 0; i < 100 && fake.command_count("?/status/model_string") == 0; ++i) {
-        usleep(10000);
-    }
+    fake.wait_for_command("?/status/model_string");
     EXPECT_EQ(fake.command_count("?/status/model_string"), 1u);
 
     // Still nothing: the link is declared lost.
@@ -547,9 +561,7 @@ TEST(galaxy_proxy, silent_device_is_detected_and_reconnect_requests_state_again)
     now += 2 * MS;
     EXPECT_EQ(proxy.poll(0, now), 0);
     EXPECT_EQ(proxy.client().ping_count(), 2u);
-    for (int i = 0; i < 100 && fake.command_count("?/status/model_string") < 2; ++i) {
-        usleep(10000);
-    }
+    fake.wait_for_command("?/status/model_string", 2);
     fake.push("/processing/input/1/gain='-3.5'");
     auto gain = proxy.ns().adaptor.resolve("/processing/input/1/gain");
     for (int i = 0; i < 50 && !proxy.mirror().reported().test(*gain); ++i) {

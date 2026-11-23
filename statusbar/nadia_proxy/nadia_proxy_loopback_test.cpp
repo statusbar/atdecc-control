@@ -15,7 +15,9 @@
 #include <poll.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <atomic>
+#include <condition_variable>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -43,6 +45,7 @@ struct FakeNadia
     std::uint16_t port = 0;
     std::thread thread;
     std::mutex mutex;
+    std::condition_variable changed;  ///< notified when received_commands grows
     std::vector<std::string> received;
     std::vector<std::string> received_commands;  ///< every non-set line
     std::atomic<bool> stop{false};
@@ -99,8 +102,11 @@ struct FakeNadia
     void handle(int fd, std::string const& line)
     {
         if (!line.starts_with("set ")) {
-            std::lock_guard lock(mutex);
-            received_commands.push_back(line);
+            {
+                std::lock_guard lock(mutex);
+                received_commands.push_back(line);
+            }
+            changed.notify_all();
             return;
         }
         {
@@ -145,6 +151,16 @@ struct FakeNadia
             n += l == line;
         }
         return n;
+    }
+
+    /// Block until @p line has been received @p at_least times. A wait for
+    /// the event, with no timeout: a command that never comes hangs the
+    /// test, and the runner's own timeout reports it.
+    void wait_for_command(std::string const& line, std::size_t at_least = 1)
+    {
+        std::unique_lock lock(mutex);
+        changed.wait(
+            lock, [&] { return std::size_t(std::count(received_commands.begin(), received_commands.end(), line)) >= at_least; });
     }
 
     ~FakeNadia()
@@ -396,9 +412,7 @@ TEST(nadia_proxy, silent_core_is_detected_and_reconnect_requests_state_again)
     now += 2 * MS;
     EXPECT_EQ(proxy.poll(0, now), 0);
     EXPECT_EQ(proxy.client().ping_count(), 1u);
-    for (int i = 0; i < 100 && fake.command_count("get liveness = system level") == 0; ++i) {
-        usleep(10000);
-    }
+    fake.wait_for_command("get liveness = system level");
     EXPECT_EQ(fake.command_count("get liveness = system level"), 1u);
 
     now += 2 * MS;
@@ -418,9 +432,7 @@ TEST(nadia_proxy, silent_core_is_detected_and_reconnect_requests_state_again)
     now += 2 * MS;
     EXPECT_EQ(proxy.poll(0, now), 0);
     EXPECT_EQ(proxy.client().ping_count(), 2u);
-    for (int i = 0; i < 100 && fake.command_count("get liveness = system level") < 2; ++i) {
-        usleep(10000);
-    }
+    fake.wait_for_command("get liveness = system level", 2);
     auto const reports_before = proxy.mirror().value_report_count();
     fake.push("Got (liveness): System Level = +0.0dB");
     int got = 0;
