@@ -19,13 +19,15 @@ statusbar_add_module(
   TESTS
   controlplane_devices_test.cpp
   galaxy_ascii_test.cpp
-  galaxy_client_test.cpp
   galaxy_mirror_test.cpp
   galaxy_schema_test.cpp
   nadia_ascii_test.cpp
   nadia_discover_test.cpp
   nadia_mirror_test.cpp
-  nadia_schema_test.cpp)
+  nadia_schema_test.cpp
+  FUNCTIONAL_TESTS
+  galaxy_client_functional_test.cpp
+  nadia_discover_functional_test.cpp)
 
 add_executable(galaxy_namespace_tool
                ${CMAKE_CURRENT_LIST_DIR}/galaxy_namespace_tool.cpp)

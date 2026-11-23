@@ -6,7 +6,6 @@
 // exercises GalaxyClient + GalaxyMirror end to end without hardware.
 
 #include "statusbar/controlplane_devices/galaxy_client.hpp"
-
 #include "statusbar/controlplane_devices/galaxy_mirror.hpp"
 #include "statusbar/test/test.hpp"
 
@@ -352,4 +351,4 @@ TEST(galaxy_client, loopback_mirror_end_to_end)
 // Test Runner
 //
 
-TEST_MAIN(statusbar_controlplane_devices, galaxy_client_test)
+TEST_MAIN(statusbar_controlplane_devices, galaxy_client_functional_test)

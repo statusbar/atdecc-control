@@ -20,9 +20,11 @@ statusbar_add_module(
   statusbar::net
   TESTS
   galaxy_widget_labels_test.cpp
-  offline_scenes_test.cpp
   widget_bridge_test.cpp
-  widget_json_test.cpp)
+  widget_json_test.cpp
+  FUNCTIONAL_TESTS
+  offline_scenes_functional_test.cpp
+  widget_bridge_functional_test.cpp)
 
 add_executable(widget_bridge_tool
                ${CMAKE_CURRENT_LIST_DIR}/widget_bridge_tool.cpp)

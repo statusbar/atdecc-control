@@ -7,11 +7,10 @@
 // a scene through the model's own SET paths — proven by a re-capture
 // reading the recalled value back, and by the report's counters.
 
-#include "statusbar/widget_bridge/offline_scenes.hpp"
-
 #include "statusbar/controlplane_devices/galaxy_schema.hpp"
 #include "statusbar/galaxy_proxy/galaxy_aem_model.hpp"
 #include "statusbar/test/test.hpp"
+#include "statusbar/widget_bridge/offline_scenes.hpp"
 #include "statusbar/widget_bridge/offline_service.hpp"
 #include "statusbar/widget_bridge/widget_bridge.hpp"
 
@@ -160,4 +159,4 @@ TEST(offline_scenes, capture_recall_round_trip)
 // Test Runner
 //
 
-TEST_MAIN(statusbar_widget_bridge, offline_scenes_test)
+TEST_MAIN(statusbar_widget_bridge, offline_scenes_functional_test)

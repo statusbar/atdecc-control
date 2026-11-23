@@ -13,7 +13,8 @@ statusbar_add_module(
   statusbar::nanoavb
   TESTS
   nadia_aem_model_test.cpp
-  nadia_proxy_loopback_test.cpp)
+  FUNCTIONAL_TESTS
+  nadia_proxy_loopback_functional_test.cpp)
 
 add_executable(nadia_proxy_tool ${CMAKE_CURRENT_LIST_DIR}/nadia_proxy_tool.cpp)
 target_link_libraries(nadia_proxy_tool PRIVATE statusbar)

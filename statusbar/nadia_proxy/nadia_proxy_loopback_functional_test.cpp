@@ -449,4 +449,4 @@ TEST(nadia_proxy, silent_core_is_detected_and_reconnect_requests_state_again)
     EXPECT_EQ(proxy.client().ping_count(), 3u);
 }
 
-TEST_MAIN(statusbar_nadia_proxy, nadia_proxy_loopback_test)
+TEST_MAIN(statusbar_nadia_proxy, nadia_proxy_loopback_functional_test)

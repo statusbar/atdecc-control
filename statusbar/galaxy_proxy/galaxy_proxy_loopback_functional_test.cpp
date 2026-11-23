@@ -577,4 +577,4 @@ TEST(galaxy_proxy, silent_device_is_detected_and_reconnect_requests_state_again)
 // Test Runner
 //
 
-TEST_MAIN(statusbar_galaxy_proxy, galaxy_proxy_loopback_test)
+TEST_MAIN(statusbar_galaxy_proxy, galaxy_proxy_loopback_functional_test)

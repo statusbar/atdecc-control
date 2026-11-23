@@ -14,8 +14,9 @@ statusbar_add_module(
   TESTS
   galaxy_proxy_test.cpp
   galaxy_aem_model_test.cpp
-  galaxy_proxy_loopback_test.cpp
-  galaxy_model_store_test.cpp)
+  galaxy_model_store_test.cpp
+  FUNCTIONAL_TESTS
+  galaxy_proxy_loopback_functional_test.cpp)
 
 add_executable(galaxy_aem_tool ${CMAKE_CURRENT_LIST_DIR}/galaxy_aem_tool.cpp)
 target_link_libraries(galaxy_aem_tool PRIVATE statusbar)
