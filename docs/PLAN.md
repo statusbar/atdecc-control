@@ -1094,7 +1094,7 @@ Because a full GX-816 scene is ~130 KiB, the tool raises
 only fits `max_response_head`).
 
 The round trip is tested against the real generated model
-(offline_scenes_test.cpp): capture → targeted recall (applied +
+(offline_scenes_functional_test.cpp): capture → targeted recall (applied +
 missing counters) → re-capture reads the value back → recalling the
 full capture verbatim applies with zero failures.
 
@@ -1245,7 +1245,7 @@ design has no channels, the same live-entity-id preflight as the
 GALAXY tool, `get` + `subscribe` for every catalogue pattern, then the
 reactor loop with non-blocking southbound drain and 5 s reconnect.
 
-Loopback test (`nadia_proxy_loopback_test`): a fake Core echoing
+Loopback test (`nadia_proxy_loopback_functional_test`): a fake Core echoing
 `Got: <friendly name> = <value>` verifies set translation for every
 value kind, echo suppression, range rejection, read-only rejection,
 name round-trip, report → GET for scalars / array rows / text, and
