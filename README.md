@@ -25,6 +25,11 @@ Docs:
   summary across the statusbar repositories (this package carries only
   the version bump; the IEEE 1722 security work and the IEEE 1722.1-2021
   conformance fixes are in crypto and avb)
+- [docs/RELEASE_3_0_0.md](docs/RELEASE_3_0_0.md) — the 3.0.0 release
+  summary across the statusbar repositories (this package carries the
+  split of its tests into unit and functional tests and the version
+  bump; the typed clocks, clock quality and the MSRP work are in core
+  and avb)
 
 ## Layout
 
